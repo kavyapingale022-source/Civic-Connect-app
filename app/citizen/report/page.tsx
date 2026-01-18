@@ -11,9 +11,11 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LocationPicker } from "@/components/location-picker"
 import { PhotoUpload } from "@/components/photo-upload"
-import { Loader2, AlertCircle } from "lucide-react"
+import { VoiceRecorder } from "@/components/voice-recorder"
+import { Loader2, AlertCircle, Type, Mic } from "lucide-react"
 import { toast } from "sonner"
 import type { IssueCategory } from "@/lib/types"
 import { CATEGORY_LABELS } from "@/lib/types"
@@ -22,6 +24,8 @@ export default function ReportIssuePage() {
   const router = useRouter()
   const [category, setCategory] = useState<IssueCategory | "">("")
   const [description, setDescription] = useState("")
+  const [audioUrl, setAudioUrl] = useState<string | null>(null)
+  const [descriptionType, setDescriptionType] = useState<"text" | "voice">("text")
   const [latitude, setLatitude] = useState<number | null>(null)
   const [longitude, setLongitude] = useState<number | null>(null)
   const [address, setAddress] = useState("")
@@ -37,8 +41,11 @@ export default function ReportIssuePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!category || !description || latitude === null || longitude === null) {
-      setError("Please fill in all required fields")
+    
+    const hasDescription = descriptionType === "text" ? description.trim() : audioUrl
+    
+    if (!category || !hasDescription || latitude === null || longitude === null) {
+      setError("Please fill in all required fields including a description (text or voice)")
       return
     }
 
@@ -59,7 +66,8 @@ export default function ReportIssuePage() {
     const { error: insertError } = await supabase.from("issues").insert({
       citizen_id: user.id,
       category,
-      description,
+      description: descriptionType === "text" ? description : "Voice recording attached",
+      audio_url: descriptionType === "voice" ? audioUrl : null,
       latitude,
       longitude,
       address,
@@ -111,15 +119,41 @@ export default function ReportIssuePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description *</Label>
-              <Textarea
-                id="description"
-                placeholder="Describe the issue in detail..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={4}
-                required
-              />
+              <Label>Description *</Label>
+              <Tabs 
+                value={descriptionType} 
+                onValueChange={(v) => setDescriptionType(v as "text" | "voice")}
+                className="w-full"
+              >
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="text" className="flex items-center gap-2">
+                    <Type className="h-4 w-4" />
+                    Type Text
+                  </TabsTrigger>
+                  <TabsTrigger value="voice" className="flex items-center gap-2">
+                    <Mic className="h-4 w-4" />
+                    Voice Note
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="text" className="mt-3">
+                  <Textarea
+                    id="description"
+                    placeholder="Describe the issue in detail..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={4}
+                  />
+                </TabsContent>
+                <TabsContent value="voice" className="mt-3">
+                  <VoiceRecorder 
+                    onRecordingComplete={setAudioUrl}
+                    existingAudio={audioUrl}
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Record a voice message describing the issue. Maximum 2 minutes.
+                  </p>
+                </TabsContent>
+              </Tabs>
             </div>
 
             <div className="space-y-2">

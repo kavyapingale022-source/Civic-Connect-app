@@ -3,7 +3,6 @@
 import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { X, Upload, Loader2 } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 
 interface PhotoUploadProps {
@@ -17,6 +16,39 @@ export function PhotoUpload({ onPhotosChange, maxPhotos = 3, existingUrls = [] }
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const convertToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = (error) => reject(error)
+    })
+  }
+
+  const compressImage = (base64: string, maxWidth = 800): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image()
+      img.crossOrigin = "anonymous"
+      img.onload = () => {
+        const canvas = document.createElement("canvas")
+        let width = img.width
+        let height = img.height
+        
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width
+          width = maxWidth
+        }
+        
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext("2d")
+        ctx?.drawImage(img, 0, 0, width, height)
+        resolve(canvas.toDataURL("image/jpeg", 0.7))
+      }
+      img.src = base64
+    })
+  }
+
   const handleFileUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return
     if (photos.length + files.length > maxPhotos) {
@@ -25,7 +57,6 @@ export function PhotoUpload({ onPhotosChange, maxPhotos = 3, existingUrls = [] }
     }
 
     setUploading(true)
-    const supabase = createClient()
     const newUrls: string[] = []
 
     for (const file of Array.from(files)) {
@@ -34,22 +65,13 @@ export function PhotoUpload({ onPhotosChange, maxPhotos = 3, existingUrls = [] }
         continue
       }
 
-      const fileExt = file.name.split(".").pop()
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
-      const filePath = `issues/${fileName}`
-
-      const { error: uploadError } = await supabase.storage.from("issue-photos").upload(filePath, file)
-
-      if (uploadError) {
-        toast.error(`Failed to upload ${file.name}`)
-        continue
+      try {
+        const base64 = await convertToBase64(file)
+        const compressed = await compressImage(base64)
+        newUrls.push(compressed)
+      } catch {
+        toast.error(`Failed to process ${file.name}`)
       }
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("issue-photos").getPublicUrl(filePath)
-
-      newUrls.push(publicUrl)
     }
 
     const updatedPhotos = [...photos, ...newUrls]

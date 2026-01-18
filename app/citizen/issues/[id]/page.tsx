@@ -3,7 +3,7 @@ import { notFound } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, MapPin, Calendar, User } from "lucide-react"
+import { ArrowLeft, MapPin, Calendar, User, Play, Pause, Volume2 } from "lucide-react"
 import Link from "next/link"
 import { StatusTimeline } from "@/components/status-timeline"
 import { CATEGORY_LABELS, STATUS_LABELS, STATUS_COLORS } from "@/lib/types"
@@ -74,6 +74,19 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
             <h3 className="font-semibold mb-2">Description</h3>
             <p className="text-muted-foreground">{typedIssue.description}</p>
           </div>
+
+          {typedIssue.audio_url && (
+            <div>
+              <h3 className="font-semibold mb-2 flex items-center gap-2">
+                <Volume2 className="h-4 w-4" />
+                Voice Recording
+              </h3>
+              <audio controls className="w-full max-w-md">
+                <source src={typedIssue.audio_url} type="audio/webm" />
+                Your browser does not support the audio element.
+              </audio>
+            </div>
+          )}
 
           <div className="grid sm:grid-cols-2 gap-4 text-sm">
             {typedIssue.address && (

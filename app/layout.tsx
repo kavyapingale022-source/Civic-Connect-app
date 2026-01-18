@@ -10,7 +10,7 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "Civic Connect - Smart Civic Issue Reporting",
-  description: "Report and track civic issues like potholes, water supply problems, garbage collection, and more.",
+  description: "Report and track civic issues like potholes, water supply problems, garbage collection, and more. Voice recording and photo uploads supported.",
   generator: "v0.app",
 }
 
