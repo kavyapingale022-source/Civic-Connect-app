@@ -1,4 +1,8 @@
-import { createClient } from "@/lib/supabase/server"
+'use client'
+
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { mockSupabase } from "@/lib/local-db"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { PlusCircle, FileText, Clock, CheckCircle } from "lucide-react"
@@ -6,25 +10,47 @@ import Link from "next/link"
 import { IssueCard } from "@/components/issue-card"
 import type { Issue } from "@/lib/types"
 
-export default async function CitizenDashboard() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+export default function CitizenDashboard() {
+  const router = useRouter()
+  const [issues, setIssues] = useState<Issue[]>([])
+  const [stats, setStats] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const { data: issues } = await supabase
-    .from("issues")
-    .select("*, citizen:profiles!issues_citizen_id_fkey(*)")
-    .eq("citizen_id", user?.id)
-    .order("created_at", { ascending: false })
-    .limit(6)
+  useEffect(() => {
+    const loadData = async () => {
+      const { data: { user } } = await mockSupabase.auth.getUser()
+      if (!user) {
+        router.push("/auth/login")
+        return
+      }
 
-  const { data: stats } = await supabase.from("issues").select("status").eq("citizen_id", user?.id)
+      const { data: issuesData } = await mockSupabase
+        .from("issues")
+        .select("*")
+        .eq("citizen_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(6)
+        .then((res: any) => res)
 
-  const totalIssues = stats?.length || 0
-  const pendingIssues = stats?.filter((i) => i.status === "submitted").length || 0
-  const inProgressIssues = stats?.filter((i) => i.status === "in_progress").length || 0
-  const resolvedIssues = stats?.filter((i) => i.status === "resolved").length || 0
+      const { data: statsData } = await mockSupabase
+        .from("issues")
+        .select("status")
+        .eq("citizen_id", user.id)
+        .then((res: any) => res)
+
+      setIssues(issuesData || [])
+      setStats(statsData || [])
+      setLoading(false)
+    }
+    loadData()
+  }, [router])
+
+  const totalIssues = stats.length || 0
+  const pendingIssues = stats.filter((i) => i.status === "submitted").length || 0
+  const inProgressIssues = stats.filter((i) => i.status === "in_progress").length || 0
+  const resolvedIssues = stats.filter((i) => i.status === "resolved").length || 0
+
+  if (loading) return <div className="p-8 text-center">Loading dashboard...</div>
 
   return (
     <div className="space-y-6">

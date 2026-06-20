@@ -1,21 +1,41 @@
-import { createClient } from "@/lib/supabase/server"
-import { IssueCard } from "@/components/issue-card"
+'use client'
+
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { mockSupabase } from "@/lib/local-db"
 import { Button } from "@/components/ui/button"
 import { PlusCircle } from "lucide-react"
 import Link from "next/link"
+import { IssueCard } from "@/components/issue-card"
 import type { Issue } from "@/lib/types"
 
-export default async function CitizenIssuesPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+export default function CitizenIssuesPage() {
+  const router = useRouter()
+  const [issues, setIssues] = useState<Issue[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const { data: issues } = await supabase
-    .from("issues")
-    .select("*, citizen:profiles!issues_citizen_id_fkey(*)")
-    .eq("citizen_id", user?.id)
-    .order("created_at", { ascending: false })
+  useEffect(() => {
+    const loadData = async () => {
+      const { data: { user } } = await mockSupabase.auth.getUser()
+      if (!user) {
+        router.push("/auth/login")
+        return
+      }
+
+      const { data: issuesData } = await mockSupabase
+        .from("issues")
+        .select("*, citizen:profiles!issues_citizen_id_fkey(*)")
+        .eq("citizen_id", user.id)
+        .order("created_at", { ascending: false })
+        .then((res: any) => res)
+
+      setIssues(issuesData || [])
+      setLoading(false)
+    }
+    loadData()
+  }, [router])
+
+  if (loading) return <div className="p-8 text-center">Loading issues...</div>
 
   return (
     <div className="space-y-6">
